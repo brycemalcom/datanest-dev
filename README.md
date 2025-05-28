@@ -1,86 +1,84 @@
-# DataNest Dev - Property Valuation Dashboard
+# 🧠 Property Intelligence Dashboard
 
-A modular Streamlit application for property valuation analysis with role-based dashboards and API testing capabilities.
-
-## 🏗️ Project Structure
-
-```
-datanest-dev/
-├── main.py                 # Main Streamlit application entry point
-├── requirements.txt        # Python dependencies
-├── .gitignore             # Git ignore rules
-├── users.json             # User authentication data
-├── README.md              # This file
-│
-├── roles/                 # Role-based dashboard views
-│   ├── __init__.py
-│   ├── lender_view.py     # Lender-specific dashboard
-│   ├── investor_view.py   # Investor-specific dashboard
-│   └── asset_manager_view.py  # Asset manager dashboard
-│
-├── api_tools/             # API testing and exploration
-│   ├── __init__.py
-│   └── endpoint_explorer.py  # Interactive API testing playground
-│
-├── components/            # Reusable UI components
-│   ├── __init__.py
-│   ├── valuation_card.py  # Property valuation display component
-│   ├── raw_json_view.py   # JSON response viewer
-│   └── property_form.py   # Reusable property input forms
-│
-└── utils/                 # Utility modules
-    ├── __init__.py
-    ├── acumidata_client.py    # API client for property data
-    ├── parser.py              # Data parsing utilities
-    └── env_loader.py          # Environment configuration loader
-```
+A comprehensive property analysis and API testing platform built with Streamlit, featuring role-based dashboards and a complete Acumidata API testing playground.
 
 ## 🚀 Features
 
-### Core Functionality
-- **Property Valuation**: Get comprehensive property valuations with comparables
-- **CSV Bulk Processing**: Upload and process multiple properties at once
-- **User Authentication**: Secure login/signup system
-- **Role-Based Views**: Different dashboards for Lenders, Investors, and Asset Managers
+### 🏠 Property Analysis
+- **Single Property Lookup** - Get detailed valuations, comparables, and market analysis
+- **Batch Processing** - Upload CSV files for bulk property analysis
+- **Multiple Valuation Models** - Quantarium, RELAR, and specialized reports
 
-### API Testing Playground
-- **Endpoint Explorer**: Test different API endpoints interactively
-- **Environment Switching**: Toggle between UAT and Production environments
-- **Response Analysis**: View formatted data, raw JSON, and key metrics
-- **Download Capabilities**: Export API responses as JSON files
+### 🔧 API Testing Playground
+- **17 Live Endpoints** across 6 categories (Valuation, Comparables, Equity, Monitoring, Title, MLS/Listings)
+- **Smart Form Detection** - Automatically shows appropriate input fields for each endpoint
+- **Environment Switching** - Test on UAT or Production environments
+- **Response Analysis** - Formatted summaries, raw JSON, and response statistics
+- **Download Capabilities** - Export API responses as JSON files
 
-### Role-Based Dashboards
+### 👥 Role-Based Views (Planned)
+- **Lender View** - Risk assessment, LTV ratios, compliance checking
+- **Investor View** - ROI analysis, cash flow projections, investment scenarios  
+- **Asset Manager View** - Portfolio management, operational metrics
 
-#### 🏦 Lender View
-- Risk assessment metrics (LTV, DSCR, Risk Score)
-- Loan scenario modeling
-- Compliance checking
-- Market trend analysis
+## 📊 Supported API Endpoints
 
-#### 📈 Investor View
-- ROI analysis (Cap Rate, Cash-on-Cash, IRR)
-- Cash flow projections
-- Market comparisons
-- Investment scenario modeling
+### Valuation Services (6 endpoints)
+- Property Valuation (Full Report) - Quantarium comprehensive analysis
+- RELAR Full Report - Complete RELAR property analysis
+- RELAR Simple Report - Simplified valuation
+- RELAR Ranged Report - Value range analysis
+- Quantarium Collateral - Lending-focused reports
+- QVM Simple - Quick estimates
 
-#### 🏢 Asset Manager View
-- Portfolio overview and composition
-- Operational metrics and KPIs
-- Maintenance tracking and scheduling
-- Geographic distribution analysis
+### Comparable Properties (3 endpoints)
+- Standard Comps - RELAR comparable properties
+- Radius Search - Properties within specified distance
+- Polygon Search - Custom geographic area analysis
 
-## 🛠️ Installation & Setup
+### Additional Services
+- **Equity Calculator** - Property equity analysis
+- **Property Monitoring** - Portfolio tracking setup
+- **Title Reports** - Comprehensive title information
+- **MLS/Listings** - Property listings, delta reports, and data feeds
+
+## 🛠️ Project Structure
+
+```
+datanest-dev/
+├── main.py                 # Main Streamlit application
+├── utils/
+│   ├── acumidata_client.py # API client with 17 endpoints
+│   ├── parser.py           # Data processing utilities
+│   └── env_loader.py       # Environment management
+├── components/
+│   ├── api_playground.py   # Complete API testing interface
+│   ├── valuation_card.py   # Property display components
+│   ├── raw_json_view.py    # JSON response viewer
+│   └── property_form.py    # Reusable input forms
+├── roles/
+│   ├── lender_view.py      # Lender-specific dashboard
+│   ├── investor_view.py    # Investor analysis tools
+│   └── asset_manager_view.py # Portfolio management
+├── api_tools/
+│   └── endpoint_explorer.py # API discovery tools
+└── api_docs/
+    └── acumidata_swagger.json # Complete API documentation
+```
+
+## 🔧 Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/brycemalcom/datanest-dev.git
    cd datanest-dev
    ```
 
 2. **Create virtual environment**
    ```bash
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   venv\Scripts\activate  # Windows
+   # source venv/bin/activate  # macOS/Linux
    ```
 
 3. **Install dependencies**
@@ -89,10 +87,10 @@ datanest-dev/
    ```
 
 4. **Set up environment variables**
-   Create a `.env` file in the root directory:
-   ```env
+   Create a `.env` file with your API keys:
+   ```
    ACUMIDATA_UAT_KEY=your_uat_api_key
-   ACUMIDATA_PROD_KEY=your_prod_api_key
+   ACUMIDATA_PROD_KEY=your_production_api_key
    ```
 
 5. **Run the application**
@@ -100,95 +98,61 @@ datanest-dev/
    streamlit run main.py
    ```
 
-## 📋 Usage
+## 🎯 Usage
 
-### Basic Property Lookup
-1. Log in or create an account
-2. Enter property details (address, city, state, zip)
-3. Click "Get Valuation" to retrieve property data
-4. View formatted results with comparables
+### Property Lookup
+1. Navigate to the **Property Lookup** tab
+2. Enter property address details
+3. Click "Get Valuation" for comprehensive analysis
 
 ### API Testing
-1. Navigate to the API Explorer section
-2. Select an endpoint to test
-3. Choose environment (UAT/Production)
-4. Enter property information
-5. View results in multiple formats
+1. Go to the **API Playground** tab
+2. Select your environment (UAT/PROD)
+3. Choose an endpoint category and specific endpoint
+4. Fill in the appropriate form fields
+5. View results in Summary, Raw JSON, or Stats tabs
 
-### Role-Based Analysis
-1. Select your role (Lender/Investor/Asset Manager)
-2. Access role-specific metrics and analysis
-3. Use specialized tools for your workflow
+### Batch Processing
+1. Use the **Batch Processing** tab
+2. Upload a CSV with columns: address, city, state, zip
+3. Process multiple properties simultaneously
+4. Download enriched results
 
-### Bulk Processing
-1. Prepare a CSV file with columns: address, city, state, zip
-2. Upload the file using the CSV uploader
-3. Process all properties and download enriched results
+## 🔑 API Categories
 
-## 🔧 Configuration
+- **Valuation** - Property value estimates and analysis
+- **Comparables** - Similar property data and market analysis
+- **Equity** - Property equity calculations
+- **Monitoring** - Portfolio tracking and alerts
+- **Title** - Property ownership and legal information
+- **MLS/Listings** - Real estate listing data and feeds
 
-### Environment Variables
-- `ACUMIDATA_UAT_KEY`: API key for UAT environment
-- `ACUMIDATA_PROD_KEY`: API key for Production environment
-- `DEBUG`: Enable debug mode (True/False)
-- `LOG_LEVEL`: Logging level (INFO, DEBUG, WARNING, ERROR)
+## 🌟 Key Features
 
-### API Endpoints
-The application supports multiple Acumidata API endpoints:
-- **Property Valuation**: `/api/Valuation/estimate`
-- **QVM Simple**: `/api/Valuation/qvmsimple`
-- **Property Advantage**: `/api/Comps/advantage`
-- **Equity Analysis**: `/api/Equity/analysis` (Coming Soon)
-- **Property Monitoring**: `/api/Monitor/alerts` (Coming Soon)
+- **100% Acumidata API Coverage** - All property address-based endpoints
+- **Intelligent Form Handling** - 5 different form types for different endpoint needs
+- **Response Intelligence** - Smart parsing and display of API responses
+- **Environment Management** - Seamless switching between UAT and Production
+- **Export Capabilities** - Download responses and processed data
+- **User Authentication** - Secure login and session management
 
-## 🧩 Modular Architecture
+## 🚧 Development Roadmap
 
-### Components
-Reusable UI components for consistent interface:
-- `ValuationCard`: Property valuation display
-- `RawJsonView`: JSON response viewer with download
-- `PropertyForm`: Standardized property input forms
+- [ ] Implement role-based dashboard views
+- [ ] Add data visualization and charting
+- [ ] Integrate mapping and geographic analysis
+- [ ] Build automated reporting features
+- [ ] Add portfolio management tools
+- [ ] Implement advanced filtering and search
 
-### Roles
-Role-specific dashboard implementations:
-- `LenderView`: Risk-focused metrics and compliance
-- `InvestorView`: ROI analysis and market insights
-- `AssetManagerView`: Portfolio and operational management
+## 📝 License
 
-### Utils
-Utility modules for core functionality:
-- `AcumidataClient`: API communication layer
-- `PropertyDataParser`: Response data processing
-- `EnvLoader`: Configuration management
-
-## 🔒 Security
-
-- User authentication with hashed passwords
-- Environment variable protection for API keys
-- Secure session management
-- Input validation and sanitization
-
-## 📈 Development Roadmap
-
-- [ ] Add more API endpoints (Equity, Monitoring)
-- [ ] Implement database integration
-- [ ] Add data visualization charts
-- [ ] Create export/reporting features
-- [ ] Implement user role permissions
-- [ ] Add property comparison tools
+This project is licensed under the MIT License.
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📄 License
+---
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 📞 Support
-
-For questions or support, please contact the development team or create an issue in the repository. 
+**Built with ❤️ using Streamlit and the Acumidata API**

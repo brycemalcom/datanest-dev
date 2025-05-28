@@ -1,5 +1,6 @@
 import streamlit as st
 from utils.acumidata_client import AcumidataClient
+from components.api_playground import APIPlayground
 import pandas as pd
 import io
 import hashlib
@@ -37,7 +38,7 @@ def verify_password(password, hashed):
 
 def login_form():
     """Display login form"""
-    st.title("🔐 Login to Property Dashboard")
+    st.title("🔐 Login to Property Intelligence Dashboard")
     
     with st.form("login_form"):
         username = st.text_input("Username")
@@ -114,7 +115,7 @@ if not st.session_state.authenticated:
 
 # Main app (only runs if authenticated)
 
-st.set_page_config(page_title="Property Valuation Dashboard", layout="centered")
+st.set_page_config(page_title="Property Intelligence Dashboard", layout="centered")
 st.markdown("""
 <style>
 .big-metric {
@@ -141,175 +142,187 @@ st.markdown("""
 # Header with logout
 col1, col2 = st.columns([3, 1])
 with col1:
-    st.title("🏠 Property Valuation Dashboard")
+    st.title("🧠 Property Intelligence Dashboard")
     st.write(f"Welcome, {st.session_state.username}!")
 with col2:
     st.write("")  # Add some spacing
     if st.button("Logout", type="secondary"):
         logout()
 
-st.write("Enter a property address to get the latest valuation and comparables.")
+# Create tabs for different sections
+tab1, tab2, tab3 = st.tabs(["🏠 Property Lookup", "📊 Batch Processing", "🔧 API Playground"])
 
-# Option to upload a CSV file
-uploaded_file = st.file_uploader("Upload a CSV file with columns: address, city, state, zip", type="csv")
+with tab1:
+    st.write("Enter a property address to get the latest valuation and comparables.")
+    
+    with st.form("lookup_form"):
+        address = st.text_input("Street Address", "531 NE Beck Rd")
+        city = st.text_input("City", "Belfair")
+        state = st.text_input("State", "WA")
+        zip_code = st.text_input("Zip Code", "98528")
+        submitted = st.form_submit_button("Get Valuation")
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    # Normalize column names: lowercase and strip spaces
-    df.columns = [col.strip().lower() for col in df.columns]
-    st.write("Uploaded CSV:")
-    st.dataframe(df)
-
-    if st.button("Process CSV"):
-        client = AcumidataClient(environment="prod")
-        progress_bar = st.progress(0)
-        total_rows = len(df)
-
-        for index, row in df.iterrows():
-            address = row['address']
-            city = row['city']
-            state = row['state']
-            zip_code = str(row['zip'])
-
+    if submitted:
+        with st.spinner("Fetching property data..."):
+            client = AcumidataClient(environment="prod")
             result = client.get_property_valuation(address, city, state, zip_code)
-            details = result.get("Details", {})
-            if not isinstance(details, dict):
-                estimated_value = None
-                confidence_score = None
-                range_low = None
-                range_high = None
+            
+            if "error" in result:
+                st.error(f"Error: {result['error']}")
             else:
+                details = result.get("Details", {})
                 property_valuation = details.get("PropertyValuation", {})
+                comps = details.get("ComparablePropertyListings", {}).get("Comparables", [])
+
                 estimated_value = property_valuation.get("EstimatedValue")
-                confidence_score = property_valuation.get("ConfidenceScore")
-                range_low = property_valuation.get("ValuationRangeLow")
-                range_high = property_valuation.get("ValuationRangeHigh")
-
-            df.at[index, 'EstimatedValue'] = estimated_value
-            df.at[index, 'ValuationRangeLow'] = range_low
-            df.at[index, 'ValuationRangeHigh'] = range_high
-            df.at[index, 'ConfidenceScore'] = confidence_score
-
-            progress_bar.progress((index + 1) / total_rows)
-
-        st.write("Enriched CSV:")
-        st.dataframe(df)
-
-        # Provide a download link for the enriched CSV
-        csv = df.to_csv(index=False)
-        st.download_button(
-            label="Download Enriched CSV",
-            data=csv,
-            file_name="enriched_property_data.csv",
-            mime="text/csv"
-        )
-
-with st.form("lookup_form"):
-    address = st.text_input("Street Address", "531 NE Beck Rd")
-    city = st.text_input("City", "Belfair")
-    state = st.text_input("State", "WA")
-    zip_code = st.text_input("Zip Code", "98528")
-    submitted = st.form_submit_button("Get Valuation")
-
-if submitted:
-    with st.spinner("Fetching property data..."):
-        client = AcumidataClient(environment="prod")
-        result = client.get_property_valuation(address, city, state, zip_code)
-        
-        if "error" in result:
-            st.error(f"Error: {result['error']}")
-        else:
-            details = result.get("Details", {})
-            property_valuation = details.get("PropertyValuation", {})
-            comps = details.get("ComparablePropertyListings", {}).get("Comparables", [])
-
-            estimated_value = property_valuation.get("EstimatedValue")
-            summary = details.get("PropertySummary", {})
-            
-            # PropertyBasics is nested inside PropertyDetails
-            property_details = details.get("PropertyDetails", {})
-            basics = property_details.get("PropertyBasics", {})
-            
-            # Get year built from PropertyBasics
-            year_built_actual = basics.get("YearBuiltActual") if basics else None
-            year_built_summary = summary.get("YearBuilt") if summary else None
-            year_built_valuation = property_valuation.get("YearBuilt") if property_valuation else None
-            
-            # Use the first available value and convert to string
-            if year_built_actual is not None:
-                year_built = str(year_built_actual)
-            elif year_built_summary is not None:
-                year_built = str(year_built_summary)
-            elif year_built_valuation is not None:
-                year_built = str(year_built_valuation)
-            else:
-                year_built = "N/A"
+                summary = details.get("PropertySummary", {})
                 
-            beds = summary.get("Bedrooms", "N/A")
-            baths = summary.get("FullBaths", "N/A")
-
-            # Display property details
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.markdown('<div class="metric-label">Property Details</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="big-metric">{address}, {city}, {state} {zip_code}</div>', unsafe_allow_html=True)
-            if estimated_value:
-                st.markdown(f'<div class="big-metric">Estimated Value: ${estimated_value:,.2f}</div>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric(label="Beds", value=beds)
-            with col2:
-                st.metric(label="Baths", value=baths)
-            with col3:
-                st.metric(label="Year Built", value=year_built)
-
-            st.markdown("---")
-            st.subheader("Market Analysis 📊")
-            
-            # Get valuation range from PropertyValuation (not from comparable sales)
-            valuation_low = property_valuation.get("ValuationRangeLow")
-            valuation_high = property_valuation.get("ValuationRangeHigh")
-            
-            if comps:
-                # Calculate average price from comparables
-                prices = [float(prop.get("Price", 0)) for prop in comps if prop.get("Price")]
-                if prices:
-                    avg_price = sum(prices) / len(prices)
+                # PropertyBasics is nested inside PropertyDetails
+                property_details = details.get("PropertyDetails", {})
+                basics = property_details.get("PropertyBasics", {})
+                
+                # Get year built from PropertyBasics
+                year_built_actual = basics.get("YearBuiltActual") if basics else None
+                year_built_summary = summary.get("YearBuilt") if summary else None
+                year_built_valuation = property_valuation.get("YearBuilt") if property_valuation else None
+                
+                # Use the first available value and convert to string
+                if year_built_actual is not None:
+                    year_built = str(year_built_actual)
+                elif year_built_summary is not None:
+                    year_built = str(year_built_summary)
+                elif year_built_valuation is not None:
+                    year_built = str(year_built_valuation)
+                else:
+                    year_built = "N/A"
                     
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric(label="Average Price", value=f"${avg_price:,.0f}")
-                    with col2:
-                        if valuation_low:
-                            st.metric(label="Valuation Low", value=f"${valuation_low:,.0f}")
-                        else:
-                            st.metric(label="Valuation Low", value="N/A")
-                    with col3:
-                        if valuation_high:
-                            st.metric(label="Valuation High", value=f"${valuation_high:,.0f}")
-                        else:
-                            st.metric(label="Valuation High", value="N/A")
+                beds = summary.get("Bedrooms", "N/A")
+                baths = summary.get("FullBaths", "N/A")
+
+                # Display property details
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                st.markdown('<div class="metric-label">Property Details</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="big-metric">{address}, {city}, {state} {zip_code}</div>', unsafe_allow_html=True)
+                if estimated_value:
+                    st.markdown(f'<div class="big-metric">Estimated Value: ${estimated_value:,.2f}</div>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric(label="Beds", value=beds)
+                with col2:
+                    st.metric(label="Baths", value=baths)
+                with col3:
+                    st.metric(label="Year Built", value=year_built)
 
                 st.markdown("---")
-                st.subheader("Recent Comparable Sales 🏡")
-                comp_data = [{
-                    "Address": f"{comp.get('Address', 'N/A')}, {comp.get('City', 'N/A')}, {comp.get('State', 'N/A')} {comp.get('Zip', 'N/A')}",
-                    "Price": f"${float(comp.get('Price', 0)):,.0f}",
-                    "Beds": comp.get("Bedrooms", "-"),
-                    "Baths": comp.get("Baths", "-"),
-                    "Sqft": comp.get("BuildingSqft", "-"),
-                    "Year Built": comp.get("YearBuilt", "-"),
-                    "Distance": f"{comp.get('Distance', '-')} mi"
-                } for comp in comps[:5]]
-                df = pd.DataFrame(comp_data)
-                st.dataframe(df, use_container_width=True, hide_index=True)
-            else:
-                st.info("No comparable properties found.")
+                st.subheader("Market Analysis 📊")
+                
+                # Get valuation range from PropertyValuation (not from comparable sales)
+                valuation_low = property_valuation.get("ValuationRangeLow")
+                valuation_high = property_valuation.get("ValuationRangeHigh")
+                
+                if comps:
+                    # Calculate average price from comparables
+                    prices = [float(prop.get("Price", 0)) for prop in comps if prop.get("Price")]
+                    if prices:
+                        avg_price = sum(prices) / len(prices)
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric(label="Average Price", value=f"${avg_price:,.0f}")
+                        with col2:
+                            if valuation_low:
+                                st.metric(label="Valuation Low", value=f"${valuation_low:,.0f}")
+                            else:
+                                st.metric(label="Valuation Low", value="N/A")
+                        with col3:
+                            if valuation_high:
+                                st.metric(label="Valuation High", value=f"${valuation_high:,.0f}")
+                            else:
+                                st.metric(label="Valuation High", value="N/A")
 
-            # Collapsible JSON/meta data section (only at the bottom)
-            with st.expander("Show Full JSON Response"):
-                st.json(result)
+                    st.markdown("---")
+                    st.subheader("Recent Comparable Sales 🏡")
+                    comp_data = [{
+                        "Address": f"{comp.get('Address', 'N/A')}, {comp.get('City', 'N/A')}, {comp.get('State', 'N/A')} {comp.get('Zip', 'N/A')}",
+                        "Price": f"${float(comp.get('Price', 0)):,.0f}",
+                        "Beds": comp.get("Bedrooms", "-"),
+                        "Baths": comp.get("Baths", "-"),
+                        "Sqft": comp.get("BuildingSqft", "-"),
+                        "Year Built": comp.get("YearBuilt", "-"),
+                        "Distance": f"{comp.get('Distance', '-')} mi"
+                    } for comp in comps[:5]]
+                    df = pd.DataFrame(comp_data)
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No comparable properties found.")
+
+                # Collapsible JSON/meta data section (only at the bottom)
+                with st.expander("Show Full JSON Response"):
+                    st.json(result)
+
+with tab2:
+    st.write("Upload a CSV file to process multiple properties at once.")
+    
+    # Option to upload a CSV file
+    uploaded_file = st.file_uploader("Upload a CSV file with columns: address, city, state, zip", type="csv")
+
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+        # Normalize column names: lowercase and strip spaces
+        df.columns = [col.strip().lower() for col in df.columns]
+        st.write("Uploaded CSV:")
+        st.dataframe(df)
+
+        if st.button("Process CSV"):
+            client = AcumidataClient(environment="prod")
+            progress_bar = st.progress(0)
+            total_rows = len(df)
+
+            for index, row in df.iterrows():
+                address = row['address']
+                city = row['city']
+                state = row['state']
+                zip_code = str(row['zip'])
+
+                result = client.get_property_valuation(address, city, state, zip_code)
+                details = result.get("Details", {})
+                if not isinstance(details, dict):
+                    estimated_value = None
+                    confidence_score = None
+                    range_low = None
+                    range_high = None
+                else:
+                    property_valuation = details.get("PropertyValuation", {})
+                    estimated_value = property_valuation.get("EstimatedValue")
+                    confidence_score = property_valuation.get("ConfidenceScore")
+                    range_low = property_valuation.get("ValuationRangeLow")
+                    range_high = property_valuation.get("ValuationRangeHigh")
+
+                df.at[index, 'EstimatedValue'] = estimated_value
+                df.at[index, 'ValuationRangeLow'] = range_low
+                df.at[index, 'ValuationRangeHigh'] = range_high
+                df.at[index, 'ConfidenceScore'] = confidence_score
+
+                progress_bar.progress((index + 1) / total_rows)
+
+            st.write("Enriched CSV:")
+            st.dataframe(df)
+
+            # Provide a download link for the enriched CSV
+            csv = df.to_csv(index=False)
+            st.download_button(
+                label="Download Enriched CSV",
+                data=csv,
+                file_name="enriched_property_data.csv",
+                mime="text/csv"
+            )
+
+with tab3:
+    # Initialize and render the API Playground
+    playground = APIPlayground()
+    playground.render_playground()
 
 def get_property_data(address, city, state, zip_code):
     client = AcumidataClient(environment="prod")

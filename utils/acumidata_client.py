@@ -93,8 +93,6 @@ class AcumidataClient:
         endpoint = "api/Valuation/estimate"
         params = {
             "streetAddress": address,
-            "city": city,
-            "state": state,
             "zip": zip_code
         }
         return self._make_request(endpoint, params)
@@ -106,8 +104,6 @@ class AcumidataClient:
         endpoint = "api/Valuation/qvmsimple"
         params = {
             "streetAddress": address,
-            "city": city,
-            "state": state,
             "zip": zip_code
         }
         return self._make_request(endpoint, params)
@@ -123,4 +119,217 @@ class AcumidataClient:
             "state": state,
             "zip": zip_code
         }
+        return self._make_request(endpoint, params)
+
+    def get_equity_advantage(self, address: str, city: str, state: str, zip_code: str) -> dict:
+        """
+        Call the /api/Equity/advantage endpoint to get equity calculator report.
+        """
+        endpoint = "api/Equity/advantage"
+        params = {
+            "streetAddress": address,
+            "city": city,
+            "state": state,
+            "zip": zip_code
+        }
+        return self._make_request(endpoint, params)
+
+    def get_monitors_advantage(self, address: str, city: str, state: str, zip_code: str) -> dict:
+        """
+        Call the /api/Monitors/advantage endpoint to create monitoring portfolio.
+        """
+        endpoint = "api/Monitors/advantage"
+        params = {
+            "streetAddress": address,
+            "city": city,
+            "state": state,
+            "zip": zip_code
+        }
+        return self._make_request(endpoint, params)
+
+    def get_comps_advantage_radius(self, address: str, city: str, state: str, zip_code: str, radius: str = "0.5") -> dict:
+        """
+        Call the /api/Comps/advantageradius endpoint to get comps within a radius.
+        """
+        endpoint = "api/Comps/advantageradius"
+        params = {
+            "StreetAddress": address,
+            "City": city,
+            "State": state,
+            "Zip": zip_code,
+            "Radius": radius
+        }
+        return self._make_request(endpoint, params)
+
+    def get_title_advantage(self, address: str, city: str, state: str, zip_code: str) -> dict:
+        """
+        Call the /api/Title/advantage endpoint to get title report.
+        """
+        endpoint = "api/Title/advantage"
+        params = {
+            "streetAddress": address,
+            "city": city,
+            "state": state,
+            "zip": zip_code
+        }
+        return self._make_request(endpoint, params)
+
+    def get_valuation_advantage(self, address: str, city: str, state: str, zip_code: str) -> dict:
+        """
+        Call the /api/Valuation/advantage endpoint to get RELAR Full Report.
+        """
+        endpoint = "api/Valuation/advantage"
+        params = {
+            "streetAddress": address,
+            "zip": zip_code
+        }
+        return self._make_request(endpoint, params)
+
+    def get_valuation_simple(self, address: str, city: str, state: str, zip_code: str) -> dict:
+        """
+        Call the /api/Valuation/simple endpoint to get RELAR Simple Valuation Report.
+        """
+        endpoint = "api/Valuation/simple"
+        params = {
+            "streetAddress": address,
+            "zip": zip_code
+        }
+        return self._make_request(endpoint, params)
+
+    def get_listings_by_property(self, address: str, city: str, state: str, zip_code: str, product: str = "advantage") -> dict:
+        """
+        Call the /api/Listings/{product} endpoint to create listing order for property.
+        """
+        endpoint = f"api/Listings/{product}"
+        params = {
+            "streetAddress": address,
+            "city": city,
+            "state": state,
+            "zip": zip_code
+        }
+        return self._make_request(endpoint, params)
+
+    def get_listings_delta_zip(self, zip_codes: str, start_date: str = None, end_date: str = None, 
+                              statuses: str = None, ref_id: str = None) -> dict:
+        """
+        Call the /api/Listings/delta-zip endpoint to get listings delta report by zip code.
+        """
+        endpoint = "api/Listings/delta-zip"
+        params = {
+            "zipCodes": zip_codes
+        }
+        if start_date:
+            params["startDate"] = start_date
+        if end_date:
+            params["endDate"] = end_date
+        if statuses:
+            params["statuses"] = statuses
+        if ref_id:
+            params["refId"] = ref_id
+        
+        return self._make_request(endpoint, params)
+
+    def get_listings_feed(self, state: str, start_timestamp: int = None, end_timestamp: int = None, 
+                         extract_type: str = None) -> dict:
+        """
+        Call the /api/Listings/feed endpoint to get MLS data feed.
+        """
+        endpoint = "api/Listings/feed"
+        params = {
+            "state": state
+        }
+        if start_timestamp:
+            params["startTimeStamp"] = start_timestamp
+        if end_timestamp:
+            params["endTimeStamp"] = end_timestamp
+        if extract_type:
+            params["extractType"] = extract_type
+        
+        return self._make_request(endpoint, params)
+
+    def get_comps_advantage_polygon(self, address: str, city: str, state: str, zip_code: str, 
+                                   polygon: str, land_use: str = None, date: str = None, 
+                                   include_birdseye: str = None) -> dict:
+        """
+        Call the /api/Comps/advantagepolygon endpoint to get comps within a polygon.
+        """
+        endpoint = "api/Comps/advantagepolygon"
+        params = {
+            "StreetAddress": address,
+            "City": city,
+            "State": state,
+            "Zip": zip_code,
+            "Polygon": polygon
+        }
+        if land_use:
+            params["LandUse"] = land_use
+        if date:
+            params["Date"] = date
+        if include_birdseye:
+            params["IncludeBirdseye"] = include_birdseye
+        
+        return self._make_request(endpoint, params)
+
+    def get_valuation_ranged(self, address: str, city: str, state: str, zip_code: str) -> dict:
+        """
+        Call the /api/Valuation/ranged endpoint to get RELAR Ranged Report.
+        """
+        endpoint = "api/Valuation/ranged"
+        params = {
+            "streetAddress": address,
+            "zip": zip_code
+        }
+        return self._make_request(endpoint, params)
+
+    def get_valuation_collateral(self, address: str, city: str, state: str, zip_code: str) -> dict:
+        """
+        Call the /api/Valuation/collateral endpoint to get Quantarium Collateral Report.
+        """
+        endpoint = "api/Valuation/collateral"
+        params = {
+            "streetAddress": address,
+            "zip": zip_code
+        }
+        return self._make_request(endpoint, params)
+
+    def get_listings_delta_fips(self, fips_code: str, start_date: str = None, end_date: str = None, 
+                               statuses: str = None, ref_id: str = None) -> dict:
+        """
+        Call the /api/Listings/delta-fips endpoint to get listings delta report by FIPS code.
+        """
+        endpoint = "api/Listings/delta-fips"
+        params = {
+            "fipsCode": fips_code
+        }
+        if start_date:
+            params["startDate"] = start_date
+        if end_date:
+            params["endDate"] = end_date
+        if statuses:
+            params["statuses"] = statuses
+        if ref_id:
+            params["refId"] = ref_id
+        
+        return self._make_request(endpoint, params)
+
+    def get_listings_feed_enhanced(self, state: str, page_size: int = 100, start_timestamp: int = None, 
+                                  end_timestamp: int = None, extract_type: str = None, 
+                                  transaction_id: int = None) -> dict:
+        """
+        Call the /api/Listings/feed endpoint with enhanced parameters including pagination.
+        """
+        endpoint = "api/Listings/feed"
+        params = {
+            "state": state,
+            "pagesize": page_size
+        }
+        if start_timestamp:
+            params["startTimeStamp"] = start_timestamp
+        if end_timestamp:
+            params["endTimeStamp"] = end_timestamp
+        if extract_type:
+            params["extractType"] = extract_type
+        if transaction_id:
+            params["transactionId"] = transaction_id
+        
         return self._make_request(endpoint, params)
