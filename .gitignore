@@ -1,0 +1,52 @@
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Streamlit config
+.streamlit/
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# VSCode or IDE configs
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs or local data
+*.log
+*.sqlite3
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json 
