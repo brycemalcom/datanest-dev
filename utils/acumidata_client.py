@@ -64,6 +64,48 @@ class AcumidataClient:
             print(f"X. Error occurred: {str(e)}")
             return {"error": str(e)}
 
+    def _make_post_request(self, endpoint: str, data: Optional[Dict] = None) -> Dict:
+        """Make a POST request to the API"""
+        url = f"{self.base_url}/{endpoint}"
+        
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+        
+        if data is None:
+            data = {}
+        
+        print("1. Starting POST request...")
+        
+        try:
+            print(f"2. Making POST request to: {url}")
+            print(f"3. With data: {data}")
+            print(f"4. Headers: {headers}")
+            
+            print("5. Sending POST request...")
+            response = requests.post(
+                url=url,
+                headers=headers,
+                json=data
+            )
+            print("6. Got response!")
+            print(f"7. Status code: {response.status_code}")
+            
+            if response.status_code not in [200, 204]:
+                print(f"8. Error response: {response.text}")
+                return {"error": f"API returned status {response.status_code}"}
+            
+            print("9. Parsing JSON...")
+            if response.status_code == 204:
+                return {"message": "No content returned"}
+            return response.json()
+        
+        except Exception as e:
+            print(f"X. Error occurred: {str(e)}")
+            return {"error": str(e)}
+
     def get_home_value(self, address: str, city: str, state: str, zip_code: str) -> Dict:
         """
         Call the Acumidata API to get home value and key property data for a given address.
@@ -333,3 +375,16 @@ class AcumidataClient:
             params["transactionId"] = transaction_id
         
         return self._make_request(endpoint, params)
+
+    def get_parcels_detail(self, address: str, city: str, state: str, zip_code: str) -> dict:
+        """
+        Call the /api/Parcels/detail endpoint to get simple parcel details.
+        """
+        endpoint = "api/Parcels/detail"
+        data = {
+            "streetAddress": address,
+            "city": city,
+            "state": state,
+            "zip": zip_code
+        }
+        return self._make_post_request(endpoint, data)

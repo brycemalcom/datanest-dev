@@ -98,6 +98,13 @@ class APIPlayground:
                 "method": "get_title_advantage",
                 "category": "Title"
             },
+            "parcels_detail": {
+                "name": "Simple Parcel Details",
+                "endpoint": "/api/Parcels/detail",
+                "description": "Get simple parcel details for a property",
+                "method": "get_parcels_detail",
+                "category": "Parcels"
+            },
             "listings_property": {
                 "name": "Listings by Property",
                 "endpoint": "/api/Listings/{product}",
@@ -457,8 +464,25 @@ class APIPlayground:
                 # Display results
                 self._display_api_results(result, endpoint_info, f"{address}, {city}, {state} {zip_code}")
                 
-            except AttributeError:
-                st.error(f"Method {method_name} not implemented in AcumidataClient")
+            except AttributeError as e:
+                # Check if it's actually a missing method or something else
+                if f"'{method_name}'" in str(e) and "object has no attribute" in str(e):
+                    st.error(f"Method {method_name} not implemented in AcumidataClient")
+                else:
+                    st.error(f"AttributeError during execution: {str(e)}")
+                    st.write("**Debug Info:**")
+                    st.write(f"- Method name: {method_name}")
+                    st.write(f"- Method exists: {hasattr(client, method_name)}")
+                    if hasattr(client, method_name):
+                        st.write("✅ Method found - error likely in result processing")
+                        # Try to show partial results if API call succeeded
+                        try:
+                            method = getattr(client, method_name)
+                            result = method(address, city, state, zip_code)
+                            st.write("✅ API call succeeded, showing raw result:")
+                            st.json(result)
+                        except Exception as api_error:
+                            st.write(f"❌ API call failed: {api_error}")
             except Exception as e:
                 st.error(f"Error calling API: {str(e)}")
     
@@ -624,6 +648,18 @@ class APIPlayground:
         # Query info header
         st.success(f"✅ Successfully retrieved data for: **{query_info}**")
         
+        # Check if result has meaningful data
+        details = result.get("Details")
+        metadata = result.get("MetaData") 
+        
+        if details is None and metadata is None:
+            st.warning("⚠️ API returned successful response but with no data (NULL values)")
+            st.info("This might indicate:")
+            st.write("- Property not found in database")
+            st.write("- Invalid address or location")
+            st.write("- Service temporarily unavailable for this property")
+            st.write("- Insufficient data available for this property")
+        
         # Create tabs for different views
         tab1, tab2, tab3 = st.tabs(["📋 Summary", "🔍 Raw JSON", "📈 Response Stats"])
         
@@ -640,6 +676,12 @@ class APIPlayground:
         """Render a formatted summary based on endpoint type."""
         st.write("**Key Information**")
         
+        # Check if we have valid details
+        details = result.get("Details")
+        if details is None:
+            st.info("No detailed information available - API returned NULL data")
+            return
+        
         category = endpoint_info['category']
         
         if category == "Valuation":
@@ -654,21 +696,28 @@ class APIPlayground:
             self._render_title_summary(result)
         elif category == "MLS/Listings":
             self._render_listings_summary(result)
+        elif category == "Parcels":
+            self._render_parcels_summary(result)
         else:
             # Generic display
-            details = result.get("Details", {})
-            if details:
+            if isinstance(details, dict):
                 for key, value in details.items():
                     if isinstance(value, dict) and len(str(value)) < 200:
                         st.write(f"**{key.replace('_', ' ').title()}:** {value}")
+            else:
+                st.write("Details data is not in expected format")
     
     def _render_valuation_summary(self, result: Dict[str, Any]):
         """Render valuation-specific summary."""
-        details = result.get("Details", {})
+        details = result.get("Details")
+        if not details or not isinstance(details, dict):
+            st.info("No valuation details available")
+            return
+            
         property_valuation = details.get("PropertyValuation", {})
         property_summary = details.get("PropertySummary", {})
         
-        if property_valuation:
+        if property_valuation and isinstance(property_valuation, dict):
             col1, col2, col3 = st.columns(3)
             
             with col1:
@@ -687,7 +736,7 @@ class APIPlayground:
                 if range_low and range_high:
                     st.metric("Valuation Range", f"${range_low:,.0f} - ${range_high:,.0f}")
         
-        if property_summary:
+        if property_summary and isinstance(property_summary, dict):
             st.write("**Property Details:**")
             col1, col2, col3 = st.columns(3)
             
@@ -702,13 +751,25 @@ class APIPlayground:
             with col3:
                 year_built = property_summary.get("YearBuilt", "N/A")
                 st.write(f"Year Built: {year_built}")
+        
+        if not property_valuation and not property_summary:
+            st.info("No specific valuation or property summary data found in response")
     
     def _render_comps_summary(self, result: Dict[str, Any]):
         """Render comparables-specific summary."""
-        details = result.get("Details", {})
-        comps = details.get("ComparablePropertyListings", {}).get("Comparables", [])
+        details = result.get("Details")
+        if not details or not isinstance(details, dict):
+            st.info("No comparables details available")
+            return
+            
+        comp_listings = details.get("ComparablePropertyListings")
+        if not comp_listings or not isinstance(comp_listings, dict):
+            st.info("No comparable property listings found")
+            return
+            
+        comps = comp_listings.get("Comparables", [])
         
-        if comps:
+        if comps and isinstance(comps, list):
             st.write(f"**Found {len(comps)} comparable properties**")
             
             # Calculate statistics
@@ -818,102 +879,188 @@ class APIPlayground:
         else:
             st.info("No detailed title information available in response")
 
+    def _render_parcels_summary(self, result: Dict[str, Any]):
+        """Render parcels-specific summary."""
+        parcel_details = result.get("parcelDetails", [])
+        metadata = result.get("metadata", {})
+        
+        if metadata:
+            st.write("**Request Summary:**")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                parcel_count = metadata.get("parcelCount", 0)
+                st.metric("Total Parcels", parcel_count)
+            
+            with col2:
+                valid_address_count = metadata.get("validAddressCount", 0)
+                st.metric("Valid Addresses", valid_address_count)
+            
+            with col3:
+                invalid_address_count = metadata.get("inValidAddressCount", 0)
+                st.metric("Invalid Addresses", invalid_address_count)
+        
+        if parcel_details and len(parcel_details) > 0:
+            st.write(f"**Found {len(parcel_details)} parcel(s)**")
+            
+            for i, parcel in enumerate(parcel_details):
+                with st.expander(f"Parcel {i+1}: {parcel.get('streetAddress', 'N/A')}"):
+                    # Basic property information
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write("**Property Details:**")
+                        st.write(f"**Address:** {parcel.get('streetAddress', 'N/A')}")
+                        st.write(f"**City:** {parcel.get('city', 'N/A')}")
+                        st.write(f"**State:** {parcel.get('stateProvince', 'N/A')}")
+                        st.write(f"**ZIP:** {parcel.get('postalCode', 'N/A')}")
+                        st.write(f"**County:** {parcel.get('county', 'N/A')}")
+                        st.write(f"**APN:** {parcel.get('apn', 'N/A')}")
+                    
+                    with col2:
+                        st.write("**Property Characteristics:**")
+                        st.write(f"**Square Feet:** {parcel.get('sqFt', 'N/A'):,}" if parcel.get('sqFt') else "**Square Feet:** N/A")
+                        st.write(f"**Bedrooms:** {parcel.get('bedrooms', 'N/A')}")
+                        st.write(f"**Bathrooms:** {parcel.get('bathrooms', 'N/A')}")
+                        st.write(f"**Year Built:** {parcel.get('yearBuilt', 'N/A')}")
+                        st.write(f"**Lot Size:** {parcel.get('lotSize', 'N/A')}")
+                        st.write(f"**Property Type:** {parcel.get('propertyType', 'N/A')}")
+                    
+                    # Financial information
+                    if any(parcel.get(key) for key in ['lastSalePrice', 'lastSaleDate', 'taxAssessedValue']):
+                        st.write("**Financial Information:**")
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            last_sale_price = parcel.get('lastSalePrice')
+                            if last_sale_price:
+                                st.write(f"**Last Sale Price:** ${float(last_sale_price):,.0f}")
+                            else:
+                                st.write("**Last Sale Price:** N/A")
+                        
+                        with col2:
+                            last_sale_date = parcel.get('lastSaleDate')
+                            st.write(f"**Last Sale Date:** {last_sale_date or 'N/A'}")
+                        
+                        with col3:
+                            tax_assessed_value = parcel.get('taxAssessedValue')
+                            if tax_assessed_value:
+                                st.write(f"**Tax Assessed Value:** ${float(tax_assessed_value):,.0f}")
+                            else:
+                                st.write("**Tax Assessed Value:** N/A")
+                    
+                    # Location information
+                    if parcel.get('latitude') and parcel.get('longitude'):
+                        st.write("**Location:**")
+                        st.write(f"**Coordinates:** {parcel.get('latitude')}, {parcel.get('longitude')}")
+                    
+                    # Additional details in an expandable section
+                    with st.expander("Additional Details"):
+                        additional_fields = {
+                            'legal_Desc': 'Legal Description',
+                            'zoning': 'Zoning',
+                            'landUse': 'Land Use',
+                            'fireplace': 'Fireplace',
+                            'pool': 'Pool',
+                            'gla': 'Gross Living Area',
+                            'data_last_update': 'Data Last Updated'
+                        }
+                        
+                        for field, label in additional_fields.items():
+                            value = parcel.get(field)
+                            if value:
+                                st.write(f"**{label}:** {value}")
+        
+        elif parcel_details is not None and len(parcel_details) == 0:
+            st.warning("No parcel details found for the provided address")
+        else:
+            st.info("No parcel details available in response")
+
     def _render_listings_summary(self, result: Dict[str, Any]):
         """Render listings-specific summary."""
-        details = result.get("Details", {})
+        details = result.get("Details")
         
-        if details:
-            # Check for listings array
-            listings = details.get("Listings", [])
-            properties = details.get("Properties", [])
+        if not details or not isinstance(details, dict):
+            st.info("No listings details available")
+            return
+        
+        # Check for listings array
+        listings = details.get("Listings", [])
+        properties = details.get("Properties", [])
+        
+        if listings and isinstance(listings, list):
+            st.write(f"**Found {len(listings)} listings**")
             
-            if listings:
-                st.write(f"**Found {len(listings)} listings**")
-                
-                # Calculate statistics
-                active_listings = [l for l in listings if l.get("Status", "").lower() == "active"]
-                pending_listings = [l for l in listings if l.get("Status", "").lower() == "pending"]
-                sold_listings = [l for l in listings if l.get("Status", "").lower() == "sold"]
-                
+            # Calculate statistics
+            active_listings = [l for l in listings if l.get("Status", "").lower() == "active"]
+            pending_listings = [l for l in listings if l.get("Status", "").lower() == "pending"]
+            sold_listings = [l for l in listings if l.get("Status", "").lower() == "sold"]
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Active Listings", len(active_listings))
+            
+            with col2:
+                st.metric("Pending Listings", len(pending_listings))
+            
+            with col3:
+                st.metric("Sold Listings", len(sold_listings))
+            
+            # Price statistics
+            prices = [float(l.get("ListPrice", 0)) for l in listings if l.get("ListPrice")]
+            if prices:
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    st.metric("Active Listings", len(active_listings))
+                    avg_price = sum(prices) / len(prices)
+                    st.metric("Average Price", f"${avg_price:,.0f}")
                 
                 with col2:
-                    st.metric("Pending Listings", len(pending_listings))
+                    st.metric("Price Range", f"${min(prices):,.0f} - ${max(prices):,.0f}")
                 
                 with col3:
-                    st.metric("Sold Listings", len(sold_listings))
-                
-                # Price statistics
-                prices = [float(l.get("ListPrice", 0)) for l in listings if l.get("ListPrice")]
-                if prices:
-                    col1, col2, col3 = st.columns(3)
-                    
+                    median_price = sorted(prices)[len(prices)//2]
+                    st.metric("Median Price", f"${median_price:,.0f}")
+            
+            # Show sample listings
+            st.write("**Sample Listings:**")
+            for i, listing in enumerate(listings[:5]):
+                with st.expander(f"Listing {i+1}: {listing.get('Address', 'N/A')}"):
+                    col1, col2 = st.columns(2)
                     with col1:
-                        avg_price = sum(prices) / len(prices)
-                        st.metric("Average Price", f"${avg_price:,.0f}")
-                    
+                        st.write(f"Price: ${float(listing.get('ListPrice', 0)):,.0f}")
+                        st.write(f"Status: {listing.get('Status', 'N/A')}")
+                        st.write(f"Beds: {listing.get('Bedrooms', 'N/A')}")
                     with col2:
-                        st.metric("Price Range", f"${min(prices):,.0f} - ${max(prices):,.0f}")
-                    
-                    with col3:
-                        median_price = sorted(prices)[len(prices)//2]
-                        st.metric("Median Price", f"${median_price:,.0f}")
-                
-                # Show sample listings
-                st.write("**Sample Listings:**")
-                for i, listing in enumerate(listings[:5]):
-                    with st.expander(f"Listing {i+1}: {listing.get('Address', 'N/A')}"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.write(f"Price: ${float(listing.get('ListPrice', 0)):,.0f}")
-                            st.write(f"Status: {listing.get('Status', 'N/A')}")
-                            st.write(f"Beds: {listing.get('Bedrooms', 'N/A')}")
-                        with col2:
-                            st.write(f"Baths: {listing.get('Bathrooms', 'N/A')}")
-                            st.write(f"Sqft: {listing.get('SquareFeet', 'N/A')}")
-                            st.write(f"List Date: {listing.get('ListDate', 'N/A')}")
-            
-            elif properties:
-                st.write(f"**Found {len(properties)} properties**")
-                # Handle properties array similar to listings
-                for i, prop in enumerate(properties[:3]):
-                    with st.expander(f"Property {i+1}"):
-                        st.json(prop)
-            
-            else:
-                # Check for other data structures
-                data_keys = [k for k in details.keys() if isinstance(details[k], list) and details[k]]
-                if data_keys:
-                    st.write("**Available Data:**")
-                    for key in data_keys:
-                        data_list = details[key]
-                        st.write(f"- {key.replace('_', ' ').title()}: {len(data_list)} items")
-                        
-                        if len(data_list) > 0 and isinstance(data_list[0], dict):
-                            with st.expander(f"Sample {key} data"):
-                                st.json(data_list[0])
-                else:
-                    st.write("**Response Summary:**")
-                    for key, value in details.items():
-                        if not isinstance(value, (list, dict)) or len(str(value)) < 100:
-                            st.write(f"**{key.replace('_', ' ').title()}:** {value}")
+                        st.write(f"Baths: {listing.get('Bathrooms', 'N/A')}")
+                        st.write(f"Sqft: {listing.get('SquareFeet', 'N/A')}")
+                        st.write(f"List Date: {listing.get('ListDate', 'N/A')}")
+        
+        elif properties and isinstance(properties, list):
+            st.write(f"**Found {len(properties)} properties**")
+            # Handle properties array similar to listings
+            for i, prop in enumerate(properties[:3]):
+                with st.expander(f"Property {i+1}"):
+                    st.json(prop)
+        
         else:
-            # Check if result has direct data
-            if isinstance(result, dict):
-                non_detail_keys = [k for k in result.keys() if k != "Details"]
-                if non_detail_keys:
-                    st.write("**Response Data:**")
-                    for key in non_detail_keys:
-                        value = result[key]
-                        if isinstance(value, list):
-                            st.write(f"**{key.replace('_', ' ').title()}:** {len(value)} items")
-                        elif not isinstance(value, dict) or len(str(value)) < 100:
-                            st.write(f"**{key.replace('_', ' ').title()}:** {value}")
-                else:
-                    st.info("No detailed listings information available in response")
+            # Check for other data structures
+            data_keys = [k for k in details.keys() if isinstance(details[k], list) and details[k]]
+            if data_keys:
+                st.write("**Available Data:**")
+                for key in data_keys:
+                    data_list = details[key]
+                    st.write(f"- {key.replace('_', ' ').title()}: {len(data_list)} items")
+                    
+                    if len(data_list) > 0 and isinstance(data_list[0], dict):
+                        with st.expander(f"Sample {key} data"):
+                            st.json(data_list[0])
+            else:
+                st.write("**Response Summary:**")
+                for key, value in details.items():
+                    if not isinstance(value, (list, dict)) or len(str(value)) < 100:
+                        st.write(f"**{key.replace('_', ' ').title()}:** {value}")
     
     def _render_raw_json(self, result: Dict[str, Any], endpoint_info: Dict[str, str]):
         """Render the raw JSON response."""
@@ -947,14 +1094,17 @@ class APIPlayground:
             st.metric("Response Size", f"{response_size:,} bytes")
         
         with col2:
-            details = result.get("Details", {})
-            field_count = len(details) if isinstance(details, dict) else 0
+            details = result.get("Details")
+            if details and isinstance(details, dict):
+                field_count = len(details)
+            else:
+                field_count = 0
             st.metric("Data Fields", field_count)
         
         with col3:
             # Count nested objects
             nested_count = 0
-            if isinstance(details, dict):
+            if details and isinstance(details, dict):
                 nested_count = sum(1 for v in details.values() if isinstance(v, dict))
             st.metric("Nested Objects", nested_count)
         
